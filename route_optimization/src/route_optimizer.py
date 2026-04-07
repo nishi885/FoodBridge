@@ -1,7 +1,8 @@
-from heapq import heappush, heappop
+from heapq import heappop, heappush
+from itertools import permutations
 from typing import Dict, List, Optional, Tuple
 
-from graph_data import EDGES, NODES, DEFAULT_NAIVE_ORDER
+from graph_data import DEFAULT_NAIVE_ORDER, EDGES
 
 GraphType = Dict[str, List[Tuple[str, float, float]]]
 
@@ -49,12 +50,7 @@ def dijkstra(start: str, end: str, mode: str = "distance") -> Tuple[List[str], f
         current = distances[current][2]
     path.reverse()
 
-    total_distance_km, total_time_min, _ = distances[end]
-    if mode != "distance":
-        total_distance_km, total_time_min = compute_route_distance_time(path)
-    else:
-        total_distance_km, total_time_min = compute_route_distance_time(path)
-
+    total_distance_km, total_time_min = compute_route_distance_time(path)
     return path, total_distance_km, total_time_min
 
 
@@ -78,23 +74,37 @@ def compute_route_distance_time(path: List[str]) -> Tuple[float, float]:
     return round(total_distance, 2), round(total_time, 1)
 
 
+def _merge_segments(paths: List[List[str]]) -> List[str]:
+    merged: List[str] = []
+    for segment in paths:
+        if not segment:
+            continue
+        if not merged:
+            merged.extend(segment)
+        else:
+            merged.extend(segment[1:])
+    return merged
+
+
+def _build_route_for_stop_order(stops: List[str], mode: str) -> Tuple[List[str], float, float]:
+    segment_paths: List[List[str]] = []
+    for source, target in zip(stops, stops[1:]):
+        segment_path, _, _ = dijkstra(source, target, mode=mode)
+        segment_paths.append(segment_path)
+
+    full_path = _merge_segments(segment_paths)
+    total_distance_km, total_time_min = compute_route_distance_time(full_path)
+    return full_path, total_distance_km, total_time_min
+
+
 def build_naive_route(start: str, end: str, via: Optional[List[str]] = None) -> List[str]:
     if via:
         stops = [node for node in via if node not in {start, end}]
     else:
         stops = [node for node in DEFAULT_NAIVE_ORDER if node not in {start, end}]
 
-    naive_route = [start]
-    for next_stop in stops + [end]:
-        segment_path, _, _ = dijkstra(naive_route[-1], next_stop, mode="distance")
-        naive_route.extend(segment_path[1:])
-
-    # Remove duplicates while preserving path order
-    final_route = []
-    for node in naive_route:
-        if not final_route or final_route[-1] != node:
-            final_route.append(node)
-    return final_route
+    naive_route, _, _ = _build_route_for_stop_order([start, *stops, end], mode="distance")
+    return naive_route
 
 
 def optimize_route(
@@ -103,14 +113,41 @@ def optimize_route(
     via: Optional[List[str]] = None,
     mode: str = "distance",
 ) -> Dict[str, object]:
-    best_path, best_distance, best_time = dijkstra(start, end, mode=mode)
-    baseline_path = build_naive_route(start, end, via=via)
+    requested_via = [node for node in (via or []) if node not in {start, end}]
+
+    if requested_via:
+        best_result = None
+        for candidate_order in permutations(requested_via):
+            path, distance_km, time_min = _build_route_for_stop_order(
+                [start, *candidate_order, end],
+                mode=mode,
+            )
+            candidate_metric = distance_km if mode == "distance" else time_min
+            if best_result is None or candidate_metric < best_result["metric"]:
+                best_result = {
+                    "path": path,
+                    "distance_km": distance_km,
+                    "time_min": time_min,
+                    "ordered_via": list(candidate_order),
+                    "metric": candidate_metric,
+                }
+
+        best_path = best_result["path"]
+        best_distance = best_result["distance_km"]
+        best_time = best_result["time_min"]
+        optimized_via_order = best_result["ordered_via"]
+    else:
+        best_path, best_distance, best_time = dijkstra(start, end, mode=mode)
+        optimized_via_order = []
+
+    baseline_path = build_naive_route(start, end, via=requested_via or None)
     baseline_distance, baseline_time = compute_route_distance_time(baseline_path)
 
     return {
         "start": start,
         "end": end,
-        "via": via or [],
+        "via": requested_via,
+        "optimized_via_order": optimized_via_order,
         "mode": mode,
         "best_path": best_path,
         "best_distance_km": best_distance,
