@@ -16,7 +16,7 @@ import requestRoutes from './routes/requestRoutes.js';
 const app = express();
 
 // Connect to MongoDB
-connectDB();
+// connectDB();
 
 // Middleware
 app.use(cors());
