@@ -34,37 +34,56 @@ const NGODashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="page-wrapper">
+    <div>
       <div className="top-bar">
-        <h1>NGO Dashboard</h1>
-        <div>
+        <h1>🏢 NGO Dashboard</h1>
+        <div className="user-info">
           <span>Welcome, {user.name}</span>
           <button className="btn-secondary" onClick={onLogout}>Logout</button>
         </div>
       </div>
 
       <div className="grid-container">
-        <section className="panel">
-          <h2>Available Food Listings</h2>
-          {foods.length === 0 ? <p>No food currently available.</p> : foods.map((item) => (
-            <FoodCard key={item.id} item={item} onAction={handleRequest} actionLabel="Request" />
-          ))}
+        <section className="dashboard-section">
+          <h2>🍎 Available Food Donations</h2>
+          {foods.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+              No food donations available right now. Check back later! 🌱
+            </p>
+          ) : (
+            foods.map((item) => (
+              <FoodCard key={item.id} item={item} onAction={handleRequest} actionLabel="Request Food" />
+            ))
+          )}
         </section>
 
-        <section className="panel">
-          <h2>Your Request Status</h2>
-          {requests.length === 0 ? <p>No requests placed yet.</p> : requests.map((req) => (
-            <div key={req.id} className="card">
-              <div className="card-header">
-                <h4>{req.food?.type || 'Unknown'}</h4>
-                <span className="badge badge-info">{req.status.toUpperCase()}</span>
+        <section className="dashboard-section">
+          <h2>📋 Your Food Requests</h2>
+          {requests.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+              No requests placed yet. Browse available donations above! 🤝
+            </p>
+          ) : (
+            requests.map((req) => (
+              <div key={req.id} className="card">
+                <div className="card-header">
+                  <h3>{req.food?.type || 'Unknown Food'}</h3>
+                  <span className={`badge ${
+                    req.status === 'pending' ? 'badge-urgent' :
+                    req.status === 'accepted' ? 'badge-available' :
+                    'badge-unavailable'
+                  }`}>
+                    {req.status.toUpperCase()}
+                  </span>
+                </div>
+                <div className="card-content">
+                  <p><strong>Quantity:</strong> {req.food?.quantity}</p>
+                  <p><strong>Location:</strong> {req.food?.location}</p>
+                  <p><strong>Requested On:</strong> {new Date(req.requestedAt).toLocaleString()}</p>
+                </div>
               </div>
-              <div className="card-content">
-                <p><strong>Quantity:</strong> {req.food?.quantity}</p>
-                <p><strong>Requested On:</strong> {new Date(req.requestedAt).toLocaleString()}</p>
-              </div>
-            </div>
-          ))}
+            ))
+          )}
         </section>
       </div>
 

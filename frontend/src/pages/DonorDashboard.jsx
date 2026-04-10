@@ -59,37 +59,77 @@ const DonorDashboard = ({ user, onLogout }) => {
   };
 
   return (
-    <div className="page-wrapper">
+    <div>
       <div className="top-bar">
-        <h1>Donor Dashboard</h1>
-        <div>
+        <h1>🍎 Donor Dashboard</h1>
+        <div className="user-info">
           <span>Welcome, {user.name}</span>
           <button className="btn-secondary" onClick={onLogout}>Logout</button>
         </div>
       </div>
 
       <div className="grid-container">
-        <section className="panel">
-          <h2>Add Food</h2>
+        <section className="dashboard-section">
+          <h2>➕ Add Food Donation</h2>
           <form onSubmit={handleAddFood} className="donor-form">
-            <label>Type<input value={formState.type} onChange={(e) => setFormState({ ...formState, type: e.target.value })} required /></label>
-            <label>Quantity<input value={formState.quantity} onChange={(e) => setFormState({ ...formState, quantity: e.target.value })} required /></label>
-            <label>Expiry<input type="datetime-local" value={formState.expiry} onChange={(e) => setFormState({ ...formState, expiry: e.target.value })} required /></label>
-            <label>Location<input value={formState.location} onChange={(e) => setFormState({ ...formState, location: e.target.value })} required /></label>
+            <label>Type
+              <input
+                value={formState.type}
+                onChange={(e) => setFormState({ ...formState, type: e.target.value })}
+                required
+                placeholder="e.g., Rice, Vegetables, Fruits"
+              />
+            </label>
+            <label>Quantity
+              <input
+                value={formState.quantity}
+                onChange={(e) => setFormState({ ...formState, quantity: e.target.value })}
+                required
+                placeholder="e.g., 10 kg, 50 servings"
+              />
+            </label>
+            <label>Expiry Date
+              <input
+                type="datetime-local"
+                value={formState.expiry}
+                onChange={(e) => setFormState({ ...formState, expiry: e.target.value })}
+                required
+              />
+            </label>
+            <label>Location
+              <input
+                value={formState.location}
+                onChange={(e) => setFormState({ ...formState, location: e.target.value })}
+                required
+                placeholder="Pickup location"
+              />
+            </label>
             <button className="btn-primary" type="submit">Add Food</button>
           </form>
         </section>
 
-        <section className="panel">
-          <h2>Your Food Listings</h2>
-          {foodList.length === 0 ? <p>No food added yet.</p> : foodList.map((item) => <FoodCard key={item.id} item={item} />)}
+        <section className="dashboard-section">
+          <h2>📦 Your Food Listings</h2>
+          {foodList.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+              No food donations added yet. Start by adding your first donation above! 🍎
+            </p>
+          ) : (
+            foodList.map((item) => <FoodCard key={item.id} item={item} />)
+          )}
         </section>
 
-        <section className="panel">
-          <h2>NGO Requests</h2>
-          {ngoRequests.length === 0 ? <p>No requests for your foods yet.</p> : ngoRequests.map((req) => (
-            <RequestCard key={req.id} request={req} onAccept={handleAccept} />
-          ))}
+        <section className="dashboard-section">
+          <h2>📋 NGO Requests</h2>
+          {ngoRequests.length === 0 ? (
+            <p style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '40px' }}>
+              No requests for your donations yet. Check back later! 🤝
+            </p>
+          ) : (
+            ngoRequests.map((req) => (
+              <RequestCard key={req.id} request={req} onAccept={handleAccept} />
+            ))
+          )}
         </section>
       </div>
 

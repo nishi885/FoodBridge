@@ -1,133 +1,152 @@
 import axios from 'axios';
 
-// Create axios instance (change baseURL to real API when available)
+// Create axios instance with actual backend URL
 const apiClient = axios.create({
-  baseURL: 'https://example.com/api',
+  baseURL: 'http://localhost:3000/api',
   timeout: 5000,
 });
 
-// Mock data to simulate an API in memory.
-let donors = [];
-let ngos = [];
-let foodItems = [];
-let requests = [];
-
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-export const signup = async ({ name, email, role }) => {
-  await sleep(300);
-
-  const existing = (role === 'donor' ? donors : ngos).find((u) => u.email === email);
-  if (existing) {
-    throw new Error('Email already registered');
+// Add JWT token to requests if available
+apiClient.interceptors.request.use((config) => {
+  const token = localStorage.getItem('token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  const newUser = {
-    id: Date.now() + Math.random(),
-    name,
-    email,
-    role,
-  };
+// Handle token expiration
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401) {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = '/';
+    }
+    return Promise.reject(error);
+  }
+);
 
-  if (role === 'donor') donors.push(newUser);
-  else ngos.push(newUser);
+export const signup = async ({ name, email, password, role, location }) => {
+  try {
+    const backendRole = role === 'donor' ? 'restaurant' : role;
 
-  return newUser;
+    const response = await apiClient.post('/auth/signup', {
+      name,
+      email,
+      password,
+      role: backendRole,
+      location: location || 'Default Location',
+    });
+
+    const { token, user } = response.data;
+
+    const frontendUser = { ...user, role };
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(frontendUser));
+
+    return frontendUser;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Signup failed');
+  }
 };
 
-export const login = async ({ email, role }) => {
-  await sleep(300);
+export const login = async ({ email, password, role }) => {
+  try {
+    const response = await apiClient.post('/auth/login', {
+      email,
+      password,
+    });
 
-  const found = (role === 'donor' ? donors : ngos).find((u) => u.email === email);
-  if (!found) {
-    throw new Error('User not found');
+    const { token, user } = response.data;
+
+    const frontendRole = user.role === 'restaurant' ? 'donor' : user.role;
+
+    if (frontendRole !== role) {
+      throw new Error('Invalid role for this account');
+    }
+
+    const frontendUser = { ...user, role: frontendRole };
+    localStorage.setItem('token', token);
+    localStorage.setItem('user', JSON.stringify(frontendUser));
+
+    return frontendUser;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Login failed');
   }
-  return found;
 };
 
 export const getDonorFoods = async (donorId) => {
-  await sleep(300);
-  return foodItems.filter((item) => item.donorId === donorId);
+  try {
+    const response = await apiClient.get('/food/restaurant/my-foods');
+    return response.data.foods || [];
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to load foods');
+  }
 };
 
 export const addFood = async ({ donorId, type, quantity, expiry, location }) => {
-  await sleep(300);
-  const food = {
-    id: Date.now() + Math.random(),
-    donorId,
-    type,
-    quantity,
-    expiry,
-    location,
-    createdAt: new Date().toISOString(),
-    status: 'available',
-  };
-  foodItems.unshift(food);
-  return food;
+  try {
+    const response = await apiClient.post('/food/add', {
+      type,
+      quantity,
+      expiry,
+      location,
+    });
+    return response.data.food;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to add food');
+  }
 };
 
 export const getAvailableFoods = async () => {
-  await sleep(300);
-  return foodItems.filter((item) => item.status === 'available');
+  try {
+    const response = await apiClient.get('/food/available');
+    return response.data.foods || [];
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to load foods');
+  }
 };
 
 export const requestFood = async ({ ngoId, foodId }) => {
-  await sleep(300);
-  const item = foodItems.find((f) => f.id === foodId);
-  if (!item || item.status !== 'available') {
-    throw new Error('Food not available');
+  try {
+    const response = await apiClient.post('/request/request', {
+      foodId,
+    });
+    return response.data.request;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to request food');
   }
-
-  item.status = 'requested';
-  requests.push({
-    id: Date.now() + Math.random(),
-    ngoId,
-    foodId,
-    status: 'pending',
-    requestedAt: new Date().toISOString(),
-  });
-
-  return item;
 };
 
 export const getNgoRequests = async (ngoId) => {
-  await sleep(300);
-  return requests
-    .filter((r) => r.ngoId === ngoId)
-    .map((r) => {
-      const food = foodItems.find((f) => f.id === r.foodId);
-      return {
-        ...r,
-        food,
-      };
-    });
+  try {
+    const response = await apiClient.get('/request/ngo/my-requests');
+    return response.data.requests || [];
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to load requests');
+  }
 };
 
 export const getAllRequests = async () => {
-  await sleep(300);
-  return requests.map((r) => {
-    const food = foodItems.find((f) => f.id === r.foodId);
-    const donor = donors.find((d) => d.id === food?.donorId);
-    const ngo = ngos.find((n) => n.id === r.ngoId);
-    return { ...r, food, donor, ngo };
-  });
+  try {
+    const response = await apiClient.get('/request/restaurant/requests');
+    return response.data.requests || [];
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to load requests');
+  }
 };
 
 export const acceptRequest = async ({ donorId, requestId }) => {
-  await sleep(300);
-  const req = requests.find((r) => r.id === requestId);
-  if (!req) throw new Error('Request not found');
-
-  const item = foodItems.find((f) => f.id === req.foodId);
-  if (!item || item.donorId !== donorId) throw new Error('Not allowed');
-
-  req.status = 'accepted';
-  item.status = 'fulfilled';
-  return req;
+  try {
+    const response = await apiClient.post('/request/accept', {
+      requestId,
+    });
+    return response.data;
+  } catch (error) {
+    throw new Error(error.response?.data?.error || 'Failed to accept request');
+  }
 };
-
-// Example of real API call usage if endpoint exists
-export const realFetchFoods = async () => {
-  const response = await apiClient.get('/foods');
   return response.data;
 };
