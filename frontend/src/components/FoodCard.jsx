@@ -44,8 +44,5 @@ const FoodCard = ({ item, onAction, actionLabel }) => {
     </div>
   );
 };
-    </div>
-  );
-};
 
 export default FoodCard;

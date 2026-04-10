@@ -148,5 +148,3 @@ export const acceptRequest = async ({ donorId, requestId }) => {
     throw new Error(error.response?.data?.error || 'Failed to accept request');
   }
 };
-  return response.data;
-};
